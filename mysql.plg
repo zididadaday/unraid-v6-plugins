@@ -1,0 +1,917 @@
+<?xml version='1.0' standalone='yes'?>
+
+<!DOCTYPE PLUGIN [
+<!ENTITY name       "mysql">
+<!ENTITY author     "ikosa">
+<!ENTITY version    "2015.09.13">
+<!ENTITY pkgversion "5.5.43-x86_64-1">
+<!ENTITY category   "Network Services">
+<!ENTITY pluginURL  "https://raw.github.com/zididadaday/unraid-v6-plugins/master/&name;.plg">
+<!ENTITY packageURL "http://slackware.cs.utah.edu/pub/slackware/slackware64-14.1/patches/packages/mariadb-5.5.43-x86_64-1_slack14.1.txz">
+<!ENTITY devplugin  "false">
+]>
+
+
+<PLUGIN  name="&name;" author="&author;" version="&version;" category="&category;" pluginURL="&pluginURL;">
+
+<CHANGES>
+##&name;
+
+###2015.09.13
+- Fixing autostart on started array
+- Corrected remove method.
+
+###2015.09.12
+- Updated to MariaDB 5.5.43
+- Testing for unRAID 6.1.2
+- Formatted CHANGES to show under Plugins menu, had to remove some strange characters
+- Stole /update.htm fix from kx2000 modified script
+- Fix log window open (using logging.htm and symlink)
+- Added remove and install method.
+
+###2014.03.15
+- 64bit MariaDB release replacement of &name;
+
+###2013.09.13
+- Ikosa: Fix for clearing new values of cfg file on reboot.
+- Ikosa: Fix not starting on reboot.
+
+###2013.09.09
+- Ikosa: Automated and manual backup features added. Some minor fixes.
+
+###2013.09.03
+- Ikosa: my.cnf chmod fix, plg update feature added, start/restart/stop controls added, my.conf typo fix, filename changed to a static one for easy update
+- .page version changed to plugin version for maintance, all contributers added to authors.
+
+###2013.02.27
+- CHBMB: upgraded to 5.5.30
+
+###2013.01.12
+- thedude459: upgraded to 5.5.29
+- Ikosa: mysql package link changed
+- Ikosa: A suspicious line about permissions (which comes from the original plg) removed.
+
+###2012.10.05
+- p1lot: Socket fix (/tmp/mysql.sock links to /var/run/mysql/mysql.sock) and updated to 5.5.28
+
+###2012.07.12
+- p1lot: DATADIR now is has permissions mysql:users in order to avoid permission issues. LibAIO-Link updated to Slackware 13.37 repos, but its the same as the 13.1-package.
+
+###2012.07.06
+- p1lot: Updated to MySQL 5.5.25
+
+###2012.06.03
+- p1lot: Updated to MySQL 5.5.24
+
+###2012.04.23
+- Andrew Hamer-Adams: Updated to MySQL 5.5.22. Changed config to relect new MySQL rc.d changes. Upgraded gui and added log files.
+
+###2011.10.29
+- Corrected typo. my.cf should be my.cnf for custom config
+
+###2011.10.27
+- If my.cf exist in /boot/config/plugins/mysql, it will be copied to /etc and used instead of using /etc/my-medium.cnf
+
+###2011.10.10
+- Rewrite bash apply script into php. This eliminated the requirements for screen when starting the mysql service. Also implimented some loggong.
+
+###2011.10.07
+- Fixed permissions issues
+- Hardcoded initial password for root account. The password is "root" (without quotes)
+
+###2011.10.05
+- First release, screen is required so the web page does not hang when starting the service.
+</CHANGES>
+
+<!--
+The plugin provides mysql support for unRAID systems.
+-->
+
+<!--install mysql-->
+<FILE Name="/boot/packages/mariadb-5.5.43-x86_64-1_slack14.1.txz">
+<URL>http://slackware.cs.utah.edu/pub/slackware/slackware64-14.1/patches/packages/mariadb-5.5.43-x86_64-1_slack14.1.txz</URL>
+<MD5>89560390c29526d793ccbbf18807c09f</MD5>
+</FILE>
+
+<!--install Libaio-->
+<FILE Name="/boot/packages/libaio-0.3.109-x86_64-1.txz" Run="upgradepkg --install-new">
+<URL>http://slackware.cs.utah.edu/pub/slackware/slackware64-14.1/slackware64/l/libaio-0.3.109-x86_64-1.txz</URL>
+<MD5>8f1a4263ca82e02bed4d2930447fd6fa</MD5>
+</FILE>
+
+<FILE Name="/boot/config/plugins/mysql/mysql.cfg">
+<INLINE>
+<![CDATA[
+# mysql configuration
+SERVICE="disable"
+DATADIR="/mnt/cache/mysql4"
+BACKUP="disable"
+BACKUPDIR="/mnt/user/backups/mysql"
+BACKUP_USERNAME="root"
+BACKUP_PASS="root"
+SEND_MAIL="enable"
+MAIL_TO="root"
+BACKUP_MIN_SIZE="1500000"
+]]>
+</INLINE>
+</FILE>
+
+
+<FILE Run="/bin/bash" Method="install">
+<INLINE>
+if [ -d /usr/local/emhttp/plugins/&name; ]; then
+  rm -r /usr/local/emhttp/plugins/&name;
+fi;
+
+if [ -f /etc/rc.d/rc.&name; ]; then
+  rm -f /etc/rc.d/rc.&name;
+fi;
+
+if [ -f /etc/my.cnf ]; then
+  rm -f /etc/my.cnf;
+fi;
+
+/sbin/upgradepkg --install-new /boot/packages/mariadb-5.5.43-x86_64-1_slack14.1.txz
+</INLINE>
+</FILE>
+
+<!--
+The 'remove' script.
+-->
+<FILE Run="/bin/bash" Method="remove">
+<INLINE>
+# Remove all plugin files.
+rm -r /usr/local/emhttp/plugins/&name;
+rm -f /etc/rc.d/rc.&name;
+rm -rf /boot/config/plugins/&name;
+rm -r /etc/my.cnf
+
+</INLINE>
+</FILE>
+
+<FILE Name="/tmp/mysql-upgrade" Run="/bin/bash">
+<INLINE>
+<![CDATA[
+#Remove currently installed plugin files and old logs
+[ -f /var/log/plugins/mysql ] && rm /var/log/plugins/mysql
+[ -d /usr/local/emhttp/plugins/mysql/ ] && rm -rf /usr/local/emhttp/plugins/mysql
+[ -f /etc/rc.d/rc.ikosa ] && rm /etc/rc.d/rc.ikosa
+[ -f /boot/config/plugins/mysql/mysql_cron.sh ] && rm /boot/config/plugins/mysql/mysql_cron.sh
+[ -f /boot/config/plugins/mysql/mysql_backup.sh ] && rm /boot/config/plugins/mysql/mysql_backup.sh
+
+rm /tmp/mysql-upgrade
+]]>
+</INLINE>
+</FILE>
+
+<FILE Name="/boot/config/plugins/mysql/mysql_backup.sh">
+<INLINE>
+<![CDATA[
+#!/bin/bash
+source /boot/config/plugins/mysql/mysql.cfg
+now=$(date +%"Y_%m_%d-%H_%M")
+
+echo "Automated MySQL Backup Started..." | logger -t mysql_backup
+if [ ! -d $BACKUPDIR ]; then
+	echo "Backup directory not exists, creating directory..." | logger -t mysql_backup
+	mkdir $BACKUPDIR
+	echo "Directory created." | logger -t mysql_backup
+else
+	echo "Backup directory exists..." | logger -t mysql_backup
+fi
+echo "Performing backup..." | logger -t mysql_backup
+mysqldump -u $BACKUP_USERNAME -p$BACKUP_PASS --all-databases --single-transaction | gzip -9 > "$BACKUPDIR"/mysqlbackup_$now.sql.gz
+echo "Backup complete." | logger -t mysql_backup
+
+check_file()
+{
+	echo "Checking backup file..." | logger -t mysql_backup
+	if [ -f "$BACKUPDIR"/mysqlbackup_$now.sql.gz ]; then
+		echo "...OK." | logger -t mysql_backup
+	else
+		echo "File not found or corrupt!" | logger -t mysql_backup
+		if [ $SEND_MAIL = "enable" ] && [ -f /usr/sbin/ssmtp ]; then
+			echo -e "From: \"Mysql Backup\"\nSubject: Error\n\nMysql backup error: \"File not found or corrupt!\" mysqlbackup_$now.sql.gz" | ssmtp -d $MAIL_TO > /dev/null 2>&1
+			echo "Mail send to $MAIL_TO." | logger -t mysql_backup
+		fi
+	fi
+}
+
+check_file_size()
+{
+	if [ -f "$BACKUPDIR"/mysqlbackup_$now.sql.gz ]; then
+		SIZE=$(du -sb "$BACKUPDIR"/mysqlbackup_$now.sql.gz | awk '{ print $1 }')
+		if ((SIZE<$BACKUP_MIN_SIZE)); then 
+			echo "Warning: Backup file size too small!" | logger -t mysql_backup
+			if [ $SEND_MAIL = "enable" ] && [ -f /usr/sbin/ssmtp ]; then
+				echo -e "From: \"Mysql Backup\"\nSubject: Error\n\nMysql backup error: \"File not found or corrupt!\" mysqlbackup_$now.sql.gz" | ssmtp -d $MAIL_TO > /dev/null 2>&1
+				echo "Mail send to $MAIL_TO." | logger -t mysql_backup
+			fi
+		else
+			echo "File size OK." | logger -t mysql_backup
+			if [ $SEND_MAIL = "enable" ] && [ -f /usr/sbin/ssmtp ]; then
+				echo -e "From: \"Mysql Backup\"\nSubject: Success\n\nMysql backup successful mysqlbackup_$now.sql.gz" | ssmtp -d $MAIL_TO > /dev/null 2>&1
+				echo "Mail send to $MAIL_TO." | logger -t mysql_backup
+			fi
+		fi
+	fi
+}
+
+  case "$SEND_MAIL" in
+	'disable')
+		check_file
+	;;
+	'error')
+		check_file
+		check_file_size
+	;;
+	'enable')
+		check_file
+		check_file_size
+	;;
+  esac
+]]>
+</INLINE>
+</FILE>
+
+
+<FILE Name="/boot/config/plugins/mysql/mysql_cron.sh" Run="/bin/bash">
+<INLINE>
+<![CDATA[
+#!/bin/bash
+#load plugin config
+source /boot/config/plugins/mysql/mysql.cfg
+
+cmd=$"$BACKUP_HOUR$BACKUP_FREQUENCY /boot/config/plugins/mysql/mysql_backup.sh"
+
+# Create cron job if enabled
+if [ "$BACKUP" = "enable" ]; then
+  echo "adding $cmd to crontab"
+  cron=/tmp/mysql_backup.tmp
+  crontab -l | grep -vi 'Automated MySQL Backup' | grep -v 'mysql_backup.sh' > $cron
+  echo '# Automated MySQL Backup' >> $cron
+  echo "$cmd" >> $cron
+  crontab $cron
+  rm -f $cron
+else
+  echo "Automated backup disabled skipping cron entry"
+fi
+]]>
+</INLINE>
+</FILE>
+
+
+<FILE Name="/usr/local/emhttp/plugins/mysql/mysql.page">
+<INLINE>
+<![CDATA[
+Menu="NetworkServices"
+Title="MySQL Server"
+Icon="mysql.png"
+---
+<?PHP
+
+$mysql_cfg = parse_ini_file( "/boot/config/plugins/mysql/mysql.cfg");
+$mysql_running = file_exists( "/var/run/mysql/mysql.pid") ? "yes" : "no";
+?>
+<body onload="disableAutoBackup(); disableMail(); checkRUNNINGonLoad();">
+<style>
+.green {
+	color: #6FA239;
+	font-size: 14px;
+}
+.red {
+	color: #CC3300;
+	font-size: 14px;
+}
+</style>
+<div name="one">
+   <form name="mysql_settings" method="POST" action="/plugins/mysql/include/mysqlctl.php" target="progressFrame">
+      <table class="settings">
+         <tr>
+         <td>Enable MySQL:</td>
+         <td><select name="SERVICE" size="1" id="service" onChange="checkRUNNING(this.form);">
+            <?=mk_option($mysql_cfg['SERVICE'], "disable", "No");?>
+            <?=mk_option($mysql_cfg['SERVICE'], "enable", "Yes");?>
+            </select></td>
+         </tr>
+         <tr>
+         <td>Data Directory:</td>
+         <td><input type="text" name="DATADIR" id="datadir" value="<?=$mysql_cfg['DATADIR'];?>"></td>
+         </tr>
+         <tr>
+         <td>Initial Root Password:</td>
+         <td>root</td>
+         </tr>
+           <tr>
+         <td></td>
+         <td></td>
+         </tr>
+      </table>
+<div id="title"><span class="left">Backup</span></div> 
+<div name="backup">
+		<table class="settings">
+			<tr><td>Enable Automated Backup:</td>
+				<td><select name="BACKUP" id="arg1" size="1"  onChange="disableAutoBackup();">
+						<?=mk_option($mysql_cfg['BACKUP'], "disable", "No");?>
+						<?=mk_option($mysql_cfg['BACKUP'], "enable", "Yes");?>
+					</select>
+				</td>
+			</tr>
+			<tr><td>Backup Frequency:</td>
+				<td><select name="BACKUP_FREQUENCY" id="arg2" size="1">
+						<?=mk_option($mysql_cfg['BACKUP_FREQUENCY'], " * * * ", "Daily");?>
+						<?=mk_option($mysql_cfg['BACKUP_FREQUENCY'], " * * 1 ", "Weekly");?>
+						<?=mk_option($mysql_cfg['BACKUP_FREQUENCY'], " 1 * * ", "Montly");?>
+					</select>
+				</td>
+			</tr>
+			<tr>
+				<td>Backup Time:</td>
+				<td><select name="BACKUP_HOUR" id="arg3" size="1">
+							<?for ($h=0; $h<24; $h++):?>
+								<?=mk_option($mysql_cfg['BACKUP_HOUR'], sprintf("0 %d", $h), sprintf("%02d:00", $h))?>
+								<?=mk_option($mysql_cfg['BACKUP_HOUR'], sprintf("30 %d",$h), sprintf("%02d:30", $h))?>
+							<?endfor;?>
+					</select>
+				</td>			
+			</tr>
+			<tr><td>Backup Directory:</td><td><input type="text" name="BACKUPDIR" id="arg4" value="<?=$mysql_cfg['BACKUPDIR'];?>"></td></tr>
+			<tr><td>Username:</td><td><input type="text" name="BACKUP_USERNAME" id="arg5" value="<?=$mysql_cfg['BACKUP_USERNAME'];?>"></td></tr>
+			<tr><td>Password:</td><td><input type="password" name="BACKUP_PASS" id="arg6" value="<?=$mysql_cfg['BACKUP_PASS'];?>"></td></tr>
+			<tr><td>Send Mail After Backup:</td>
+				<td><select name="SEND_MAIL" size="1" id="arg7" onChange="disableMail();">
+						<?=mk_option($mysql_cfg['SEND_MAIL'], "disable", "No");?>
+						<?=mk_option($mysql_cfg['SEND_MAIL'], "error", "Just Errors");?>
+						<?=mk_option($mysql_cfg['SEND_MAIL'], "enable", "Yes");?>
+					</select>
+					<?if ($mysql_cfg['SEND_MAIL'] != "disable"):?>
+						<?$ssmtp_installed = is_file("/usr/sbin/ssmtp") ? yes : no;?>
+						<?if ($ssmtp_installed=="yes"):?>
+							<span class="green"><b>&#10004</b> ssmtp is installed</span>
+						<?else:?>
+							<span class="red"><b>&#10008</b> ssmtp is not installed, required for this funtion!</span>
+						<?endif;?>
+					<?endif;?>
+				</td>
+			</tr>
+			<tr><td>Send Mail to:</td><td><input type="text" name="MAIL_TO" id="arg8" value="<?=$mysql_cfg['MAIL_TO'];?>"></td></tr>
+			<tr><td>Min File Size to Warn:</td><td><input type="text" name="BACKUP_MIN_SIZE" id="arg9" value="<?=$mysql_cfg['BACKUP_MIN_SIZE'];?>"></td></tr>
+			<tr><td></td><td><input type="submit" name="cmd" value="Save"> <input type="submit" name="cmd" value="Apply"> <input type="submit" name="cmd" title="Uses parameters above! Save them before running backup!" value="Backup Now"> <button type="button" onClick="done();">Done</button></td></tr>
+		</table>
+	</form>
+ 
+</div>
+</div>
+   <div id="title"><span class="left">Status: 
+   
+   <? if ($mysql_running=="yes") { ?>
+
+     <span class="green">Running</span>
+
+<? } else { ?>
+   
+   <span class="red">Stopped</span>
+   
+   <?php } ?>
+   </span></div>
+   <?$mysql_localplg=shell_exec("/etc/rc.d/rc.ikosa getver mysql local");?>
+   <?$mysql_remoteplg=shell_exec("/etc/rc.d/rc.ikosa getver mysql remote");?>
+ <div name="two">
+	<form name="mysql_settings" method="POST" action="/plugins/mysql/include/mysqlctl.php" target="progressFrame">
+		  <table class="settings">
+			 <tr>
+			 <td>MySQL Plugin Version:</td>
+			 <?if ($mysql_localplg != "" AND $mysql_localplg != "Unknown" AND $mysql_localplg != $mysql_remoteplg):?>
+			 <td>New version (<?=$mysql_remoteplg?>) is available <input type="submit" name="cmd" value="Update Plg"></td>
+			 <?else:?>
+			 <td>Plugin is up to date</td>
+			 <?endif;?>
+			 </tr>
+			 <tr>
+			 <td>MySQL Server Version:</td>
+			 <td><?php echo exec('/usr/bin/mysql -V'); ?></td>
+			 </tr>
+			 <tr>
+			 <td>Configuration Location:</td>
+			 <td>/etc/my.cnf</td>
+			 </tr>
+			 <tr>
+			 <td>Control Actions:</td>
+			 <?if ($mysql_running==yes):?>
+			 <td><input type="submit" name="cmd" value="Restart"><input type="submit" name="cmd" value="Stop"></td>
+			 <?else:?>
+			 <td><input type="submit" name="cmd" value="Start"></td>
+			 <?endif;?>
+		  </table>
+	</form>
+ </div>
+
+
+
+<div id="title"><span class="left">Log Files</span></div> 
+<div name="four">
+    <table class="share_status wide">
+    <tr>
+         <td>Filename</td>
+         <td>Size</td>
+         </tr>
+    <?php
+foreach (glob("".$mysql_cfg['DATADIR']."/*.err") as $log) {
+        $logname = basename($log);
+
+if (file_exists("/var/log/$logname")) {
+}
+    else {
+          exec("ln -s $log /var/log/$logname");
+}
+          echo "<tr><td><a href=\"#\" onClick=\"mysqlLog('$logname');return false;\">".$log."</a></td><td>".filesize($log)."</td></tr>";
+	
+}
+?>
+  </table>
+  </div>
+<script type="text/javascript">
+function checkRUNNING(form)
+{
+   if ("<?=$mysql_running;?>" == "yes") {
+    form.datadir.readOnly = true;
+   }
+}
+
+function checkRUNNINGonLoad()
+{
+   if ("<?=$mysql_running;?>" == "yes") {
+
+      document.getElementById("datadir").readOnly = true;
+   }
+}
+
+
+function disableAutoBackup()
+{
+   if (document.getElementById('arg1').value == "enable") {
+		document.getElementById('arg2').readOnly = false;
+		document.getElementById('arg3').readOnly = false;
+   }
+   else {
+		document.getElementById('arg2').readOnly = true;
+		document.getElementById('arg3').readOnly = true;
+   }
+}
+
+function disableMail()
+{
+   if (document.getElementById('arg7').value == "disable") {
+		document.getElementById('arg8').readOnly = true;
+		document.getElementById('arg9').readOnly = true;
+   }
+   else {
+		document.getElementById('arg8').readOnly = false;
+		document.getElementById('arg9').readOnly = false;
+   }
+}
+
+function mysqlLog(logname) {
+  openWindow("/webGui/scripts/tail_log&arg1="+logname,logname,600,900);
+}
+
+checkRUNNING(document.mysql_settings);
+</script>
+
+]]>
+</INLINE>
+</FILE>
+
+
+<FILE Name="/usr/local/emhttp/plugins/mysql/include/mysqlctl.php">
+<INLINE>
+<![CDATA[
+<?PHP
+  require_once "/usr/local/emhttp/webGui/include/Wrappers.php";
+  date_default_timezone_set(substr(readlink("/etc/localtime-copied-from"), 20));
+  $logfile = "/var/log/plugins/mysql";
+  $configfile = "/boot/config/plugins/mysql/mysql.cfg";
+  $mysql_running = file_exists( "/var/run/mysql/mysql.pid") ? "yes" : "no";
+
+  if (empty($_SERVER['SHELL']))
+    $newline = "<br>";
+  else
+    $newline = "\n";
+
+  $cur_dt = date("F j\, Y h:i:s A");
+  write_log("\nStart: $cur_dt");
+  
+  $settings = array(
+    "SERVICE",
+    "DATADIR",
+	"BACKUP",
+	"BACKUP_FREQUENCY",
+	"BACKUP_HOUR",
+	"BACKUPDIR",
+	"BACKUP_USERNAME",
+	"BACKUP_PASS",
+	"SEND_MAIL",
+	"MAIL_TO",
+	"BACKUP_MIN_SIZE",
+  );
+
+  #parse_str($argv[1],$_POST);
+
+  $SERVICE=$_POST['SERVICE'];
+  $DATADIR=$_POST['DATADIR'];
+
+  write_log("SERVICE: $SERVICE\nDATADIR: $DATADIR");
+
+        if ($argv[1] == "autostart") {
+                // only do this once
+                if ($mysql_running == "yes") return 1;
+                $CMD = $argv[1];
+                $mysql_installing = "yes";
+        } else {
+                $CMD = $_POST['cmd'];
+                $mysql_installing = "no";
+        }
+
+        if ($CMD  == "autostart") {
+                $_POST = parse_plugin_cfg( "mysql" );
+        }
+
+        $cur_dt = date("F j\, Y h:i:s A");
+        write_log("\nStart: $cur_dt");
+
+        if ($mysql_installing == "no") {
+                readfile("/usr/local/emhttp/update.htm");
+                $newline = "";
+        } else {
+                $newline = "\n";
+        }
+
+
+  switch ($CMD) {
+    case 'Apply':
+      saveconfig();
+      
+      if ("$SERVICE" == "enable") {
+        applyconfig();
+        startmysql();
+      }
+      else
+        stopmysql();
+      
+      break;
+     case 'Start':
+      startmysql();
+	  break;
+    case 'Stop':
+	  stopmysql();
+      break;
+	case 'Restart':
+	  stopmysql();
+	  sleep(10);
+	  startmysql();
+      break;
+    case 'enable':
+      break;
+	case 'Update Plg':
+	  updateplg();
+	  break;
+    case 'disable':
+      break;
+	case 'Save':
+	  saveconfig();
+	  break;
+	case 'Backup Now':
+	  run_backup();
+	  break;
+  case 'autostart';
+                        if ($SERVICE == "enable") {
+stopmysql();                                
+applyconfig();
+startmysql();
+                        } else {
+                                stopmysql();
+                        }
+break;
+    default:
+    break;
+  }
+
+  if (empty($_SERVER['SHELL'])) {
+    echo("<html>");
+    echo("<head><script>var goback=parent.location;</script></head>");
+    echo("<body onLoad=\"parent.location=goback;\"></body>");
+    echo("</html>");
+  }
+  
+  $cur_dt = date("F j\, Y h:i:s A");
+  write_log("\nEnd: $cur_dt");
+  
+  function startmysql() {
+    global $newline, $log, $DATADIR;
+
+    echo("Starting MySQL...");
+    exec_log("/etc/rc.d/rc.mysql start --user=root");
+ 
+    if (file_exists("$DATADIR/.rootpasswordset")) {
+        echo("...root password already set...");
+    }
+    else {
+      echo("...Setting initial root password...");
+      sleep(10);
+      exec_log("mysqladmin -u root password root");
+      exec_log("mysql -u root --password=root -e \"GRANT ALL PRIVILEGES ON *.* TO root@'%' IDENTIFIED BY 'root' WITH GRANT OPTION;\"");
+      touch("$DATADIR/.rootpasswordset");
+    }
+	
+	exec_log("ln -s /tmp/mysql.sock /var/run/mysql/mysql.sock");
+
+    echo("Completed$newline");
+
+  }
+  
+  function stopmysql() {
+    global $newline, $log;
+
+    echo("Stopping MySQL...");
+    exec_log("/etc/rc.d/rc.mysql stop --user=root");
+    echo("Completed$newline");
+  }
+  
+  function applyconfig() {
+    echo("Applying Settings...");
+ 
+    global $SERVICE, $DATADIR, $newline, $log;
+    
+    exec_log("mkdir -p $DATADIR");
+ 
+    //exec_log("grep ^mysql /etc/passwd");
+    
+    //create mysql user if required
+   //if ($results == "") {
+    //  exec_log("useradd -r -g users -d / -s /bin/false mysql &> /dev/null");
+    //  exec_log("cp /etc/passwd /etc/shadow /boot/config");
+    //}
+	
+    //add mysql to the users group
+    //exec_log("usermod -a -G users mysql");
+   
+    //fix permissions of data directory
+    exec_log("chown -hR nobody:users $DATADIR");
+    exec_log("chmod -R go-rwx,u-x,g+u,ug+X $DATADIR");
+	
+    //rc.mysql
+    exec_log("cp /usr/share/mysql/mysql.server /etc/rc.d/rc.mysql");
+    exec_log("sed -i -e '/^datadir=/c\\datadir='$DATADIR'' /etc/rc.d/rc.mysql");
+    exec_log("sed -i -e '/^mysqld_pid_file_path=/c\\mysqld_pid_file_path=/var/run/mysql/mysql.pid' /etc/rc.d/rc.mysql");
+    exec_log("sed -i -e '/^user=/c\\user=root' /etc/rc.d/rc.mysql");
+    exec_log("sed -i -e '/^basedir=/c\\basedir=/usr' /etc/rc.d/rc.mysql");
+ 
+    	
+
+    if (file_exists("/boot/config/plugins/mysql/my.cnf")) {
+      echo("User my.cnf...");
+      unlink("/etc/my.cnf");
+      exec_log("cp /boot/config/plugins/mysql/my.cnf /etc/my.cnf");
+	  //fix permissions of my.cnf
+	  exec_log("chmod 644 /etc/my.cnf");
+    }
+    else {
+      echo("Standard my.cnf...");
+      exec_log("cp /usr/share/mysql/my-medium.cnf /etc/my.cnf");
+      exec_log("sed -i -e '/^#innodb_data_home_dir/c\\innodb_data_home_dir = '$DATADIR'' /etc/my.cnf");
+      exec_log("sed -i -e '/^#innodb_log_group_home_dir/c\\innodb_log_group_home_dir = '$DATADIR'' /etc/my.cnf");
+      exec_log("sed -i -e '/^#innodb_log_arch_dir/c\\innodb_log_arch_dir = '$DATADIR'' /etc/my.cnf");
+    }
+
+    if (!is_dir("$DATADIR/mysql")) {
+      echo("Runnings mysql_install_db...");
+      exec_log("/usr/bin/mysql_install_db --basedir=/usr --datadir=$DATADIR --user=root");
+      exec_log("chmod -R go-rwx,u-x,g+u,ug+X $DATADIR");
+    }
+     
+    echo("Completed$newline");  
+  }
+  
+  function saveconfig () {
+    echo("Saving Settings...");
+    global $_POST, $configfile, $settings, $newline;
+
+    $string .= "#mysql configuration\n";
+
+    foreach ($_POST as $key=>$value) {
+      if (in_array($key, $settings)) {
+        $string .= "$key=\"$value\"\n";
+      }
+    }
+    
+    write_string($configfile, $string, TRUE);
+    
+    echo("Completed$newline ");
+	exec_log("/boot/config/plugins/mysql/mysql_cron.sh");
+  }
+  
+  function exec_log($cmd) {
+
+    $results = exec($cmd);
+    
+    $results = "\nCMD: $cmd \nResults: $results";
+    write_log($results);
+  }
+
+  function write_log($contents) {
+    global $logfile;
+    write_string($logfile, "$contents\n", FALSE);
+  }
+    
+  function write_string ($file, $contents, $overwrite) {
+    if (file_exists($file)) {
+      if ($overwrite)
+          unlink($file);
+          touch($file);
+    }
+    else {
+      touch($file);
+    }
+    
+    $fp = @fopen($file, 'a');
+    @flock($fp, LOCK_EX);
+    @fwrite($fp, $contents);
+    @flock($fp, LOCK_UN);
+    @fclose($fp);
+  }
+  
+  function updateplg()
+{
+	exec_log("wget -o /var/log/mysql_install.log -P /tmp --no-check-certificate dl.dropboxusercontent.com/s/j0abbn1fzdn41at/mysql-ikosa.plg");
+    echo ("Downloading plugin...");
+	if (is_file("/tmp/mysql-ikosa.plg")) 
+	{
+      exec_log("mv -f /boot/config/plugins/mysql-ikosa.plg /boot/config/plugins/mysql/mysql-ikosa.plg.old | tee /var/log/mysql_install.log");
+      exec_log("mv -f /tmp/mysql-ikosa.plg /boot/config/plugins/mysql-ikosa.plg | tee /var/log/mysql_install.log");
+      exec_log("/usr/local/sbin/installplg /boot/config/plugins/mysql-ikosa.plg | tee /var/log/mysql_install.log");
+	  echo ("Plugin updated succesfully."); 
+    }
+    else
+	{
+	  echo ("Download failed, update aborted!");
+    }
+}
+
+  function run_backup()
+{
+	echo ("Starting backup...");
+	exec_log("/boot/config/plugins/mysql/mysql_backup.sh");
+	echo ("Done.");
+}
+?>
+]]>
+</INLINE>
+</FILE>
+
+<FILE Name="/usr/local/emhttp/plugins/&name;/&name;.png" Type="base64">
+<INLINE>
+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
+</INLINE>
+</FILE>
+
+<FILE Name="/usr/local/emhttp/plugins/&name;/icons/&name;.png" Type="base64">
+<INLINE>
+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
+</INLINE>
+</FILE>
+
+<FILE Name="/usr/local/emhttp/plugins/&name;/information.png" Type="base64">
+<INLINE>
+iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABGdBTUEAAK/INwWK6QAAABl0RVh0U29mdHdhcmUAQWRvYmUgSW1hZ2VSZWFkeXHJZTwAAAKcSURBVDjLpZPLa9RXHMU/d0ysZEwmMQqZiTaP0agoaKGJUiwIxU0hUjtUQaIuXHSVbRVc+R8ICj5WvrCldJquhVqalIbOohuZxjDVxDSP0RgzyST9zdzvvffrQkh8tBs9yy9fPhw45xhV5X1U8+Yhc3U0LcEdVxdOVq20OA0ooQjhpnfhzuDZTx6++m9edfDFlZGMtXKxI6HJnrZGGtauAWAhcgwVnnB/enkGo/25859l3wIcvpzP2EhuHNpWF9/dWs/UnKW4EOGDkqhbQyqxjsKzMgM/P1ymhlO5C4ezK4DeS/c7RdzQoa3x1PaWenJjJZwT9rQ1gSp/js1jYoZdyfX8M1/mp7uFaTR8mrt29FEMQILr62jQ1I5kA8OF59jIItVA78dJertTiBNs1ZKfLNG+MUHX1oaURtIHEAOw3p/Y197MWHEJEUGCxwfHj8MTZIcnsGKxzrIURYzPLnJgbxvG2hMrKdjItjbV11CYKeG8R7ygIdB3sBMFhkem0RAAQ3Fuka7UZtRHrasOqhYNilOwrkrwnhCU/ON5/q04vHV48ThxOCuoAbxnBQB+am65QnO8FqMxNCjBe14mpHhxBBGCWBLxD3iyWMaYMLUKsO7WYH6Stk1xCAGccmR/Ozs/bKJuXS39R/YgIjgROloSDA39Deit1SZWotsjD8pfp5ONqZ6uTfyWn+T7X0f59t5fqDhUA4ry0fYtjJcWeZQvTBu4/VqRuk9/l9Fy5cbnX+6Od26s58HjWWaflwkusKGxjm1bmhkvLXHvh1+WMbWncgPfZN+qcvex6xnUXkzvSiYP7EvTvH4toDxdqDD4+ygT+cKMMbH+3MCZ7H9uAaDnqytpVX8cDScJlRY0YIwpAjcNcuePgXP/P6Z30QuoP4J7WbYhuQAAAABJRU5ErkJggg==
+</INLINE>
+</FILE>
+
+
+<FILE Name="/usr/local/emhttp/plugins/&name;/README.md">
+<INLINE>
+**&name; Plugin**
+
+This plugin installs mariadb, a drop-in replacement for the MySQL Database Server.
+</INLINE>
+</FILE>
+
+<FILE Name="/etc/rc.d/rc.ikosa" Mode="0770">
+<INLINE>
+<![CDATA[
+#!/bin/bash
+# getver
+
+ikosa_plgver()
+{
+	  case "$2" in
+		'local')
+		  if [ -f /usr/local/emhttp/plugins/$1/$1.page ]; then
+			VERSION=$(grep "Version=" /usr/local/emhttp/plugins/$1/$1.page | cut -d\" -f2)
+		  else
+			VERSION=Unknown
+		  fi
+		;;
+		'remote')
+		  VERSION=$(wget --no-check-certificate dl.dropboxusercontent.com/s/4kj74vlun9llb65/ikosa-version.cfg -q -O - | grep -i $1 | cut -d'"' -f2)
+		  if [ "$VERSION" == "" ]; then
+			VERSION=Unknown
+		  fi
+		;;
+  esac
+  echo -n "$VERSION"
+}
+
+ikosa_getver()
+{
+  if [[ ! -z $1 && ! -z $2 ]]; then
+  case "$1" in
+    'control_panel')
+      ikosa_plgver $1 $2
+    ;;
+    'mysql')
+      ikosa_plgver $1 $2
+    ;;   
+  esac
+  else
+    echo "usage $0 getver plugin_name local|remote"
+  fi
+}
+
+case "$1" in
+  'updateplg')
+    ikosa_updateplg
+  ;;
+  'getver')
+    ikosa_getver $2 $3
+    ;;
+  *)
+    echo "usage $0 getver plugin_name local|remote"
+esac
+]]>
+</INLINE>
+</FILE>
+
+<!-- event handler -->
+<FILE Name="/usr/local/emhttp/plugins/mysql/event/started" Mode="0770">
+<INLINE>
+<![CDATA[
+#!/bin/bash
+#load plugin config
+#Only start if array has started in Normal operation mode, if MySQL plugin is enabled and all conf files exist.
+
+if grep -q 'fsState="Started"' /var/local/emhttp/var.ini && grep -q 'startMode="Normal"' /var/local/emhttp/var.ini; then
+	echo "Array started in normal mode...starting MySQL..." | logger
+	source /boot/config/plugins/mysql/mysql.cfg
+	echo "Loaded mysql.cfg values..." | logger
+		if grep -q 'SERVICE="enable"' /boot/config/plugins/mysql/mysql.cfg; then
+			echo "MySQL service enabled...creating config files..." | logger
+			if [ ! -f /etc/rc.d/rc.mysql ]; then
+			echo "Creating rc.mysql..." | logger
+			cp /usr/share/mysql/mysql.server /etc/rc.d/rc.mysql
+			sed -i -e '/^datadir=/c\\datadir='$DATADIR'' /etc/rc.d/rc.mysql
+			sed -i -e '/^mysqld_pid_file_path=/c\\mysqld_pid_file_path=/var/run/mysql/mysql.pid' /etc/rc.d/rc.mysql
+			sed -i -e '/^user=/c\\user=root' /etc/rc.d/rc.mysql
+			sed -i -e '/^basedir=/c\\basedir=/usr' /etc/rc.d/rc.mysql
+			fi
+			if [ -f /boot/config/plugins/mysql/my.cnf ]; then
+			echo "User my.cnf..." | logger
+			cp /boot/config/plugins/mysql/my.cnf /etc/my.cnf
+			chmod 644 /etc/my.cnf
+			else
+			echo "Standard my.cnf..." | logger
+			cp /usr/share/mysql/my-medium.cnf /etc/my.cnf
+			sed -i -e '/^#innodb_data_home_dir/c\\innodb_data_home_dir = '$DATADIR'' /etc/my.cnf
+			sed -i -e '/^#innodb_log_group_home_dir/c\\innodb_log_group_home_dir = '$DATADIR'' /etc/my.cnf
+			sed -i -e '/^#innodb_log_arch_dir/c\\innodb_log_arch_dir = '$DATADIR'' /etc/my.cnf
+			fi
+			echo "Setting directory permissions..." | logger
+			chown -hR nobody:users $DATADIR
+			chmod -R go-rwx,u-x,g+u,ug+X $DATADIR
+			if [ -f /etc/rc.d/rc.mysql ] &&  [ -f /etc/my.cnf ] && [ -f $DATADIR/.rootpasswordset ]; then
+			echo "Starting mysql service..." | logger
+			/etc/rc.d/rc.mysql start --user=root
+			else
+			echo "Some files are missing...skipping start..." | logger
+			fi
+		else
+		echo "MySQL service not enabled..." | logger
+		fi
+else
+echo "Array not started or not started in normal mode..." | logger
+fi
+
+]]>
+</INLINE>
+</FILE>
+
+<!-- event handler -->
+<FILE Name="/usr/local/emhttp/plugins/mysql/event/stopping_svcs" Mode="0770">
+<INLINE>
+<![CDATA[
+#!/bin/bash
+/etc/rc.d/rc.mysql stop
+]]>
+</INLINE>
+</FILE>
+
+</PLUGIN>
